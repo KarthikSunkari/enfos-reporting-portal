@@ -1,72 +1,90 @@
 # ENFOS Reporting Portal
 
-A full-stack reporting portal built for the ENFOS Software Engineer take-home assessment. The implementation is being delivered in small, reviewable phases so each layer has a clear contract and can be verified independently.
+A production-minded full-stack reporting portal built with React, TypeScript, Java, and Spring Boot. Users can discover available reports, search the report catalog, and explore Users, Departments, and Projects data in responsive tables.
 
-> Current status: **Phase 4 - single-command container deployment implemented.** Final evidence and submission polish are the next delivery.
+The application uses deterministic in-memory data so it can be reviewed without database setup. Docker Compose builds, verifies, and starts the complete stack with one command.
 
-## Assessment coverage
+## Features
 
-The finished application will let a reviewer:
+- Searchable report landing page with descriptions, record counts, and dataset update timestamps
+- Dedicated Users, Departments, and Projects report routes
+- Responsive semantic tables with search and accessible column sorting
+- Loading skeletons, empty states, no-result states, error recovery, and unknown-route handling
+- Runtime validation of API payloads before data reaches the UI
+- Request cancellation and a 10-second client timeout
+- Keyboard-visible focus, semantic landmarks, live result counts, and reduced-motion support
+- Health-checked, non-root containers with bounded logs and graceful shutdown
+- Same-origin production proxy with restrictive browser security headers
 
-- browse the Users, Departments, and Projects reports;
-- search reports by name;
-- open each report in a responsive table;
-- see intentional loading, empty, and error states;
-- navigate back to the reporting home; and
-- start the complete stack with one documented command.
+## Technology
 
-The source assessment is summarized into the delivery plan in [Architecture and decisions](docs/architecture.md). That document also records assumptions and tradeoffs for interview discussion.
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19, TypeScript, Vite, React Router |
+| Backend | Java 21, Spring Boot 3.5, Spring Web MVC, Actuator |
+| Testing | Vitest, Testing Library, JUnit 5, Spring MockMvc |
+| Runtime | Nginx Unprivileged, Docker Compose v2 |
 
-## Run the full stack
+## Quick start
 
-Prerequisites:
+### Prerequisites
 
-- Docker Desktop or Docker Engine with Compose v2;
-- ports `3000` and `8080` available on localhost; and
-- enough free disk space for the pinned Java, Node, and Nginx base images (approximately 3 GB for a first uncached build).
+- Docker Desktop or Docker Engine configured for Linux containers
+- Docker Compose v2, available through `docker compose`
+- Ports `3000` and `8080` available on localhost
+- Approximately 3 GB of free disk space for a first uncached image build
+- Internet access during the first build to download pinned base images and dependencies
+
+No host installation of Java, Maven, Node.js, npm, or Nginx is required.
+
+### Build and run the complete application
+
+From the repository root:
 
 ```bash
 docker compose up --build
 ```
 
-Open the reporting portal at `http://localhost:3000`. The frontend proxies `/api/**` to the backend inside the Compose network, while the backend remains directly available at `http://localhost:8080` for API inspection.
+Wait for the backend health check to pass and the frontend to start, then open:
 
-Verify both services in another terminal:
+- Portal: <http://localhost:3000>
+- Backend API: <http://localhost:8080/api/reports>
+- Backend health: <http://localhost:8080/actuator/health>
+
+Stop and remove the application containers and private network with:
 
 ```bash
-curl --fail http://localhost:3000/healthz
-curl --fail http://localhost:3000/api/reports
-curl --fail http://localhost:8080/actuator/health
+docker compose down
 ```
 
-Stop the application with `docker compose down`.
+Application data is recreated on every start because the project intentionally uses immutable in-memory fixtures.
 
-The image builds run linting and all automated tests. This makes `docker compose up --build` the intended clean-checkout build, verification, and startup path.
+## Verify the deployment
 
-No host Java, Maven, Node.js, npm, or Nginx installation is required for this path. Both services build from their lockfiles/manifests, run as non-root users, expose health checks, and start in dependency order—the frontend waits until the backend is healthy.
-
-For an automated live verification after startup:
+With the stack running, execute this from a second terminal:
 
 ```bash
 ./scripts/verify-deployment.sh
 ```
 
-The script waits for both services and verifies backend health, all report endpoints through the frontend proxy, SPA detail routes, and the production browser security headers.
+The script checks backend and frontend health, every required report endpoint through the production proxy, SPA detail routes, response schemas, and browser security headers.
 
-## Phase 1: Spring Boot API
+Useful manual checks:
 
-The backend currently provides the four required read-only endpoints:
+```bash
+docker compose ps
+curl --fail http://localhost:3000/healthz
+curl --fail http://localhost:3000/api/reports
+curl --fail http://localhost:8080/actuator/health
+```
 
-| Endpoint | Description |
-| --- | --- |
-| `GET /api/reports` | Metadata for all available reports |
-| `GET /api/reports/users` | Users report rows |
-| `GET /api/reports/departments` | Departments report rows |
-| `GET /api/reports/projects` | Projects report rows |
+Both services should report `healthy` in `docker compose ps`.
 
-Useful operational endpoint: `GET /actuator/health`.
+## Local development
 
-### Run directly
+The Docker workflow above is the supported evaluation and clean-checkout path. Direct development is optional and requires local runtimes.
+
+### Start the backend directly
 
 Prerequisites: JDK 21 and Maven 3.6.3 or newer.
 
@@ -75,31 +93,11 @@ cd backend
 mvn spring-boot:run
 ```
 
-### Test
+The backend starts at <http://localhost:8080>.
 
-```bash
-cd backend
-mvn verify
-```
+### Start the frontend directly
 
-The Docker image also runs the complete test suite during every build, so `docker compose build backend` is a clean-checkout verification path without a local Java or Maven installation.
-
-## Phase 2: React reporting home
-
-The React and TypeScript frontend now includes:
-
-- report metadata fetched from the backend rather than duplicated in the client;
-- fast, case-insensitive report-name filtering;
-- responsive report cards with record counts and refresh dates;
-- loading skeletons plus empty, no-results, and recoverable error states;
-- route-safe links for each report, ready for the table-view phase;
-- runtime validation for API responses and a 10-second request timeout;
-- keyboard-visible focus, semantic landmarks, live result counts, and reduced-motion support; and
-- a non-root Nginx image with same-origin API proxying and restrictive browser security headers.
-
-### Run directly
-
-Prerequisites: Node.js 22.12 or newer and the Phase 1 backend running on port 8080.
+Prerequisites: Node.js 22.12 or newer, npm, and the backend running on port `8080`.
 
 ```bash
 cd frontend
@@ -107,30 +105,84 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`. Vite proxies `/api` to the local backend.
+The Vite development server starts at <http://localhost:5173>. Vite proxies `/api` and `/actuator` requests to the backend.
 
-## Phase 3: Dynamic report tables
+Port `5172` is not configured by this project. A browser request to `localhost:5172` will fail unless an unrelated process is listening there.
 
-Each report card now routes to a dedicated URL backed by its required endpoint:
+## Ports and request flow
 
-| Route | API request | Columns |
+| Port | Used by | When |
 | --- | --- | --- |
-| `/reports/users` | `GET /api/reports/users` | ID, name, email, role, status, location, created date |
-| `/reports/departments` | `GET /api/reports/departments` | ID, department, manager, employees, location |
-| `/reports/projects` | `GET /api/reports/projects` | ID, project, department, owner, status, start/end dates |
+| `3000` | Nginx frontend and same-origin API proxy | Docker Compose |
+| `8080` | Spring Boot API and Actuator health endpoint | Docker Compose and direct development |
+| `5173` | Vite frontend development server | Direct frontend development only |
 
-The detail experience includes:
+The production-style local request path is:
 
-- a shared typed report registry instead of duplicated pages;
-- runtime validation tailored to every report row schema;
-- responsive, semantic HTML tables with a keyboard-focusable horizontal scroll region;
-- client-side search across every visible field;
-- accessible ascending and descending sorting for every column;
-- readable dates, employee counts, email links, and status indicators;
-- loading skeletons plus empty, error/retry, no-results, and unknown-report states; and
-- prominent navigation back to the report library.
+```text
+Browser http://localhost:3000
+  -> Nginx /api/** proxy
+  -> Spring Boot backend:8080
+  -> immutable in-memory report data
+```
 
-### Verify
+The browser calls `/api/**` on the same origin that served the frontend. Nginx forwards those requests over the private Compose network, so normal Compose browser traffic does not depend on cross-origin access.
+
+## CORS
+
+The backend still applies a narrow CORS policy for direct local development and API inspection. Allowed origins default to:
+
+```text
+http://localhost:3000
+http://localhost:5173
+```
+
+Only `GET` and preflight `OPTIONS` are permitted. Credentials are disabled and wildcard origins are not used.
+
+Configure deployment origins with a comma-separated environment variable:
+
+```text
+CORS_ALLOWED_ORIGINS=https://reports.example.com
+```
+
+CORS is a browser boundary, not authentication. A production internal portal should use TLS and enterprise identity enforcement at a trusted ingress or gateway.
+
+## API
+
+All report endpoints are read-only and return JSON.
+
+| Method | Endpoint | Response |
+| --- | --- | --- |
+| `GET` | `/api/reports` | Report metadata |
+| `GET` | `/api/reports/users` | Users report rows |
+| `GET` | `/api/reports/departments` | Departments report rows |
+| `GET` | `/api/reports/projects` | Projects report rows |
+| `GET` | `/actuator/health` | Application health |
+
+### Report columns
+
+| Report | Columns |
+| --- | --- |
+| Users | User ID, name, email, role, status, location, created date |
+| Departments | Department ID, department name, manager, employee count, location |
+| Projects | Project ID, project name, department, owner, status, start date, end date |
+
+User location and report row count are sensible additions beyond the minimum assessment contract.
+
+### Data freshness
+
+`lastUpdated` values describe when each mock dataset was updated. They are deterministic backend metadata, not the time a browser opened the page or issued a request. The frontend labels them as `Data updated` and summarizes the newest value as `Latest data update`.
+
+## Testing
+
+The container builds act as quality gates. The backend image runs `mvn verify`; the frontend image runs linting, all unit/component tests, and a production compilation before either runtime image is produced.
+
+Run the suites directly when the required host tools are installed:
+
+```bash
+cd backend
+mvn verify
+```
 
 ```bash
 cd frontend
@@ -140,75 +192,115 @@ npm run build
 npm audit
 ```
 
-## Configuration
+Current automated coverage includes:
 
-| Environment variable | Default | Purpose |
-| --- | --- | --- |
-| `SERVER_PORT` | `8080` | Backend HTTP port inside the container |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Comma-separated browser origins allowed to call `/api/**` |
-| `VITE_API_BASE_URL` | `/api` | Optional API base URL embedded into a direct frontend build |
+- all four REST contracts and accepted/rejected CORS preflights
+- immutable report fixtures and metadata row-count consistency
+- landing-page rendering, filtering, no-results, empty, error, and retry behavior
+- all three report endpoints and required table views
+- table search, ascending/descending sorting, empty and retry states
+- malformed API response rejection, unknown routes, and back navigation
 
-Do not use a wildcard CORS origin for deployment. Set `CORS_ALLOWED_ORIGINS` to the exact frontend origin instead.
+## Architecture
+
+```text
+React pages
+  -> feature hooks
+  -> validated API client
+  -> Nginx same-origin proxy
+  -> Spring REST controller
+  -> report service interface
+  -> immutable in-memory implementation
+```
+
+The frontend is organized by report feature, separating pages, reusable UI states, table components, hooks, API access, runtime schemas, and types. The backend separates HTTP controllers, response models, service contracts, configuration, and fixture implementation.
+
+See [Architecture and design decisions](docs/architecture.md) for detailed rationale and tradeoffs.
 
 ## Project structure
 
 ```text
 .
-├── backend/
-│   ├── src/main/java/com/enfos/reporting/
-│   │   ├── config/       # Externalized web/CORS configuration
-│   │   ├── controller/   # REST boundary
-│   │   ├── model/        # Immutable API response records
-│   │   └── service/      # Service contract and mock implementation
-│   ├── src/test/         # Controller contract and service tests
-│   ├── Dockerfile
-│   └── pom.xml
-├── frontend/
-│   ├── src/
-│   │   ├── app/          # Application routing
-│   │   ├── components/   # Shared brand and icon primitives
-│   │   └── features/     # Report API, hooks, states, cards, and pages
-│   ├── Dockerfile
-│   ├── nginx.conf        # SPA hosting, security headers, and API proxy
-│   └── package.json
-├── docs/
-│   └── architecture.md   # Design decisions, tradeoffs, and roadmap
-├── docker-compose.yml
-└── README.md
+|-- backend/
+|   |-- src/main/java/com/enfos/reporting/
+|   |   |-- config/       # Externalized web and CORS configuration
+|   |   |-- controller/   # REST boundary
+|   |   |-- model/        # Immutable response records
+|   |   `-- service/      # Service contract and in-memory implementation
+|   |-- src/test/         # Controller contract and service tests
+|   |-- Dockerfile
+|   `-- pom.xml
+|-- frontend/
+|   |-- src/
+|   |   |-- app/          # Application routing
+|   |   |-- components/   # Shared visual primitives
+|   |   `-- features/     # Report API, hooks, state, cards, tables, and pages
+|   |-- Dockerfile
+|   |-- nginx.conf
+|   `-- package.json
+|-- docs/
+|   `-- architecture.md
+|-- scripts/verify-deployment.sh
+|-- docker-compose.yml
+`-- README.md
 ```
 
-## Delivery checklist
+## Reliability and security
 
-- [x] Phase 1 - Spring Boot API, deterministic mock data, CORS, health endpoint, tests, and backend container
-- [x] Phase 2 - React landing page, report discovery, search, resilient UI states, routing, and frontend container
-- [x] Phase 3 - Typed dynamic report table views, record search/sorting, navigation, and resilient states
-- [x] Phase 4 - Pinned multi-stage images, health-gated Compose startup, secure proxying, and deployment verification script
-- [ ] Phase 5 - Browser evidence, automated accessibility review, screenshots/demo, and submission polish
+- Versioned base images are pinned by immutable multi-platform digests.
+- Runtime containers use non-root users.
+- Published ports bind to `127.0.0.1` and are not exposed to the local network by default.
+- Health-gated startup prevents the frontend from starting before the API is ready.
+- Restart policies, init processes, graceful stop periods, and bounded log rotation improve local operational behavior.
+- API payloads are validated at runtime before rendering.
+- Dynamic report IDs are allowlisted and cannot become arbitrary API paths.
+- Nginx limits methods, hides upstream server disclosure, and provides CSP, anti-framing, MIME-sniffing, referrer, and permissions headers.
+- Spring error responses suppress exception details and stack traces.
+- Actuator exposure is limited to health and info, with health details hidden.
 
-## Assumptions
+## Portability
 
-- In-memory data is intentionally deterministic; a database is optional per the assessment.
-- Dates are transported as ISO-8601 values and formatted for people in the frontend.
-- Authentication is expected to live at an enterprise identity/gateway boundary and is not simulated with hard-coded credentials.
-- The extra Users `location` field and metadata `rowCount` field add useful reporting context without removing any required columns.
+The Compose workflow is designed for current Docker Desktop installations on macOS, Windows, and Linux Docker engines with Compose v2. Pinned Java, Node, and Nginx image indexes support common `amd64` and `arm64` hosts.
 
-## Deployment reliability and security
+It is not accurate to promise operation on every system. A compatible Docker engine, Linux-container support, available ports, sufficient memory/disk, and initial registry/network access are still required. The stack has been live-verified on Apple Silicon; the multi-platform definitions are intended to make the same command portable to typical reviewer machines.
 
-- Base images are pinned by immutable digest while retaining readable version tags.
-- The build stages run all backend tests plus frontend lint, tests, and production compilation before producing runtime images.
-- Published ports bind to `127.0.0.1`, so the assessment stack is not unintentionally exposed to the local network.
-- Compose uses health-gated dependency startup, restart policies, lightweight init processes, graceful stop windows, and bounded log rotation.
-- Nginx allows only read methods, proxies the API over the private Compose network, suppresses upstream server disclosure, and serves SPA routes safely.
-- Security headers remain present on HTML, assets, API responses, and error responses; cache rules no longer override inherited headers.
-- This local assessment deployment terminates plain HTTP. A hosted production deployment should add TLS and enterprise authentication at a trusted ingress or gateway.
+On Windows, `docker compose up --build` works from PowerShell. The optional verification shell script requires Git Bash, WSL, or another POSIX-compatible shell with `curl`.
 
-### Troubleshooting
+## Assumptions and tradeoffs
 
-- If a port is already in use, stop the conflicting local service before starting Compose.
-- If Docker reports `no space left on device`, free Docker/host disk space and restart Docker Desktop before rebuilding. Avoid deleting named volumes unless their data is known to be disposable.
-- Inspect service state with `docker compose ps` and logs with `docker compose logs --no-color backend frontend`.
-- Rebuild from the pinned definitions with `docker compose build --pull` when intentionally refreshing image content; changing a digest should be reviewed as a dependency update.
+- In-memory data is sufficient for this reporting slice and keeps setup deterministic. Data does not persist across restarts.
+- Client-side search and sorting are appropriate for the small bounded datasets. A larger system should move filtering, sorting, and pagination to the backend.
+- Hand-written response guards keep this small client dependency-light. A broader API could generate clients and schemas from OpenAPI.
+- Authentication is intentionally not simulated with hard-coded credentials. Production authentication belongs at an enterprise identity boundary.
+- Tables retain every business column at small viewport widths through horizontal scrolling rather than hiding data.
+- Health-gated startup prioritizes a ready complete experience over serving a frontend shell while the API remains unavailable.
+
+## Troubleshooting
+
+### A localhost page refuses to connect
+
+- Use <http://localhost:3000> for Docker Compose.
+- Use <http://localhost:5173> only after starting `npm run dev`.
+- Do not use port `5172`; the project does not configure it.
+- Check service state with `docker compose ps`.
+
+### A port is already allocated
+
+Stop the conflicting local process or container before restarting Compose. The documented URLs assume ports `3000` and `8080` remain unchanged.
+
+### Docker reports insufficient disk space
+
+Free Docker or host disk space and restart Docker Desktop before rebuilding. Do not delete named volumes unless their contents are known to be disposable.
+
+### A service is unhealthy
+
+```bash
+docker compose ps
+docker compose logs --no-color backend frontend
+```
+
+Rebuild intentionally refreshed image content with `docker compose build --pull`. Digest changes should be reviewed as dependency updates.
 
 ## License
 
-This repository is an assessment submission and is not currently licensed for redistribution.
+This repository was created as an engineering assessment submission and is not licensed for redistribution.

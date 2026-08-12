@@ -1,103 +1,115 @@
-# Architecture
+# Architecture and Design Decisions
 
-## Incremental delivery plan
+## System overview
+
+The portal is a small full-stack application with independently testable frontend, delivery, API, and data boundaries.
 
 ```mermaid
 flowchart LR
-    Browser[React client] -->|same-origin /api/**| Proxy[Nginx proxy]
-    Proxy --> Controller[ReportController]
-    Controller --> Service[ReportService]
-    Service --> MockData[Immutable in-memory data]
-    Compose[Docker Compose] -. starts .-> Browser
-    Compose -. starts .-> Controller
+    Browser[React client] -->|same-origin /api/**| Proxy[Nginx]
+    Proxy -->|private Compose network| Controller[Spring REST controller]
+    Controller --> Service[Report service interface]
+    Service --> Data[Immutable in-memory data]
+    Compose[Docker Compose] -. health-gated startup .-> Proxy
+    Compose -. health checks .-> Controller
 ```
 
-The application is deliberately split at boundaries that can evolve independently:
+The browser receives static React assets from Nginx and sends API requests to the same origin. Nginx proxies `/api/**` requests to Spring Boot over the private Compose network. The controller delegates report retrieval to a service contract backed by deterministic immutable fixtures.
 
-- The controller owns HTTP routes and JSON serialization, not data creation.
-- `ReportService` is the application boundary. The in-memory implementation can later be replaced by a repository-backed implementation without changing the API.
-- Java records make response models concise and immutable.
-- Configuration is externalized through environment variables so the same image can run locally or in a hosted environment.
+## Component boundaries
 
-## Phase 2 decisions
+### Frontend
 
-| Decision | Rationale | Tradeoff |
-| --- | --- | --- |
-| React 19, TypeScript, and Vite | A small, fast client build with strict static checks and no unnecessary framework runtime. | The application owns its data-fetching conventions rather than adopting a larger framework. |
-| Feature-oriented frontend folders | API, hooks, page states, and report presentation evolve together without crowding global component folders. | A three-report application has more structure than strictly necessary today. |
-| Same-origin API proxy | The browser talks only to the frontend origin in Compose, simplifying deployment and avoiding production CORS dependencies. | Nginx must know the backend service name. |
-| Purpose-built `useReports` hook | Keeps request lifecycle, cancellation, retry, and UI rendering responsibilities separate. | A broader application could justify a server-state library once caching and mutations are needed. |
-| Runtime response validation | Prevents malformed API payloads from silently corrupting the interface. | Hand-written guards must evolve with the API contract. |
-| CSS design system without a UI kit | Creates a distinctive, lightweight interface while keeping full control of responsive and accessible behavior. | Common primitives must be maintained locally. |
-| Route placeholder for report details | Report cards have stable, testable destinations while table work remains isolated to Phase 3. | This intermediate commit intentionally does not yet satisfy the final table-view requirement. |
+- **Pages** compose the reporting home and report-detail experiences.
+- **Feature hooks** own request lifecycles, cancellation, retries, and state transitions.
+- **API modules** perform HTTP requests, enforce timeouts, and validate response shapes.
+- **Report definitions** map supported report IDs to endpoints, schemas, columns, and presentation metadata.
+- **Shared components** render report cards, reusable states, and the semantic data table.
 
-## Phase 3 decisions
+### Backend
 
-| Decision | Rationale | Tradeoff |
-| --- | --- | --- |
-| Typed report-definition registry | One route and table renderer support all reports while schemas, endpoints, columns, and presentation remain explicit. | Adding a report requires a registry entry and a row guard. |
-| Report-specific runtime guards | A malformed row fails the request instead of producing a partially trusted or misleading table. | The client contract duplicates a small amount of backend schema knowledge. |
-| Semantic table with horizontal overflow | Preserves real header/cell relationships and every required column at narrow widths. | Mobile users may scroll horizontally; hiding business data would be less transparent. |
-| Client-side search and sorting | Immediate interactions are appropriate for the assessment's bounded in-memory datasets. | Production-scale datasets should move filtering, sorting, and pagination to the API. |
-| Stable configured row keys | Prevents rendering instability and avoids treating row position as identity. | Unexpected rows fall back to an index-based key only after validation. |
-| Unknown route allowlist | Only the three supported IDs can trigger requests, preventing arbitrary route text from becoming an API path. | Report availability is compiled into the client for this assessment. |
+- **Controllers** define the HTTP contract and JSON boundary.
+- **Response records** represent immutable API payloads.
+- **ReportService** separates transport concerns from data retrieval.
+- **InMemoryReportService** supplies deterministic, thread-safe mock data.
+- **Configuration** externalizes ports and the allowed CORS origins.
 
-## Phase 4 decisions
+### Delivery
 
-| Decision | Rationale | Tradeoff |
-| --- | --- | --- |
-| Multi-stage images with build gates | Runtime images contain only the built application, while tests and static checks must pass before packaging. | Clean builds take longer than copying host artifacts. |
-| Version tags plus immutable digests | Reviewers can understand the selected runtime versions while builds resolve to identical image content. | Intentional base-image upgrades require explicit digest changes. |
-| Health-gated frontend startup | Nginx starts only after Spring Boot reports healthy, avoiding predictable startup-time proxy failures. | A persistently unhealthy backend prevents frontend startup rather than serving a degraded shell. |
-| Loopback-only published ports | The local assessment is reachable by the reviewer without exposure to other machines on the network. | Remote access requires an intentional ingress or bind-address change. |
-| Init and graceful stop windows | Signals are reaped/forwarded correctly and Spring has time to finish graceful shutdown. | Adds a tiny init process to each container. |
-| Bounded JSON logs | Prevents an unattended local stack from consuming unlimited host disk. | Older logs rotate out after three 10 MB files per service. |
-| Executable smoke-test script | Makes deployment assertions repeatable without adding a heavyweight end-to-end dependency. | Requires `curl`, available by default on common reviewer environments. |
-
-## Phase 1 decisions
-
-| Decision | Rationale | Tradeoff |
-| --- | --- | --- |
-| Spring Boot 3.5.x on Java 21 | A mature Spring generation plus an LTS JDK keeps reviewer setup predictable. | This intentionally favors compatibility over adopting Spring Boot 4 immediately. |
-| Explicit report endpoints | Matches the assessment contract and keeps each response strongly typed. | Adding many report types would eventually benefit from a registry or generic query layer. |
-| Immutable in-memory fixtures | Deterministic, thread-safe, and sufficient for the requested scope. | Changes disappear on restart and there is no persistence. |
-| ISO-8601 dates and timestamps | Browser clients can parse them reliably without locale ambiguity. | Presentation formatting belongs to the frontend. |
-| Allowlisted CORS origins | Supports local UI development without opening the API to every origin. | Deployment must provide its actual frontend origin. |
-| No authentication in this slice | Authentication is outside the assessment requirements; inventing fake auth would not improve security. | A production internal portal should integrate with the organization's identity provider or gateway. |
+- **Nginx** serves the production frontend, provides SPA fallback routing, applies browser security headers, restricts methods, and proxies API traffic.
+- **Docker Compose** builds both applications, waits for backend readiness, publishes loopback-only ports, and defines restart, logging, and shutdown behavior.
+- **Health endpoints** make readiness observable to Compose and the verification script.
 
 ## API contract
 
-All endpoints return JSON and are read-only.
+All report operations are read-only and return JSON.
 
 | Method | Path | Response |
 | --- | --- | --- |
-| `GET` | `/api/reports` | Report metadata with stable ID, description, update time, and row count |
-| `GET` | `/api/reports/users` | User report rows |
-| `GET` | `/api/reports/departments` | Department report rows |
-| `GET` | `/api/reports/projects` | Project report rows |
-| `GET` | `/actuator/health` | Container health status |
+| `GET` | `/api/reports` | Report metadata with stable ID, description, update timestamp, and row count |
+| `GET` | `/api/reports/users` | Users report rows |
+| `GET` | `/api/reports/departments` | Departments report rows |
+| `GET` | `/api/reports/projects` | Projects report rows |
+| `GET` | `/actuator/health` | Application health status |
 
-## Security and reliability posture
+## Key design decisions
 
-- Only configured browser origins can make cross-origin requests; only `GET` and preflight `OPTIONS` are allowed.
-- Actuator exposure is limited to `health` and `info`, with health details suppressed.
-- Default error responses do not disclose exception messages or stack traces.
-- The container runs as a non-root user and uses graceful shutdown.
-- Static data is immutable and safe for concurrent reads.
-- Controller contract tests cover every endpoint and both accepted and rejected CORS preflights.
-- Frontend requests are cancelled during unmount, time out after 10 seconds, validate response shape, and expose a retry action.
-- Production browser traffic uses a same-origin proxy with CSP, anti-framing, MIME-sniffing, referrer, and permissions headers.
-- Both runtime containers use non-root users and expose health checks to Compose.
-- The frontend dependency lockfile currently reports zero known npm audit vulnerabilities.
-- Dynamic report identifiers are allowlisted, and report rows must pass the matching runtime schema before rendering.
-- Sorting and searching operate on validated, immutable response arrays and never generate HTML from API strings.
-- Runtime images use non-root users, pinned bases, limited local exposure, bounded logs, init processes, and health checks.
-- Nginx restricts methods, hides upstream server disclosure, and applies security headers without cache-directive inheritance gaps.
+| Decision | Rationale | Tradeoff |
+| --- | --- | --- |
+| React, TypeScript, and Vite | Provides a fast client build, strict static checking, and a small runtime footprint. | Data-fetching conventions are maintained within the application rather than supplied by a larger framework. |
+| Feature-oriented frontend structure | Keeps report API access, hooks, schemas, states, and presentation close to the feature they implement. | Introduces more directories than a three-page prototype strictly requires. |
+| Typed report-definition registry | Allows one route and table renderer to support all reports while keeping columns, endpoints, and schemas explicit. | Adding a report requires a registry entry and a corresponding runtime guard. |
+| Runtime response validation | Prevents malformed or incomplete API data from being silently rendered. | The frontend duplicates a small portion of the backend contract. |
+| Purpose-built request hooks | Separates request lifecycle and recovery behavior from page rendering without adding a server-state dependency. | A larger application with caching and mutations would benefit from a dedicated server-state library. |
+| Semantic tables with horizontal overflow | Preserves real header-cell relationships and every required business column on narrow screens. | Mobile users may need horizontal scrolling. |
+| Client-side filtering and sorting | Delivers immediate interaction for small, bounded in-memory datasets. | Production-scale datasets should use server-side filtering, sorting, and pagination. |
+| Spring Boot controller-service separation | Keeps the REST boundary independent of the current data implementation. | The service abstraction is more structure than an immutable fixture alone requires. |
+| Immutable in-memory fixtures | Makes startup deterministic, concurrent reads safe, and database setup unnecessary. | Data is not persistent and update timestamps are fixed metadata. |
+| ISO-8601 dates in the API | Avoids locale ambiguity and leaves presentation formatting to the client. | The frontend must format values for display. |
+| Same-origin Nginx proxy | Gives production browser traffic one origin and avoids depending on permissive CORS behavior. | The proxy configuration must know the backend service address. |
+| Allowlisted development CORS | Supports direct local development without allowing arbitrary browser origins. | Hosted environments must explicitly configure their frontend origin. |
+| Multi-stage, digest-pinned images | Tests and static checks gate packaging while runtime images contain only necessary artifacts and resolve reproducibly. | Base-image upgrades require deliberate digest changes. |
+| Health-gated startup | Prevents predictable frontend proxy failures while the backend is still starting. | A persistently unhealthy API prevents the frontend container from starting. |
+| Non-root, loopback-only local deployment | Reduces container privileges and avoids unintended exposure to the local network. | Remote access requires an intentional ingress or bind-address change. |
 
-## Planned phases
+## State model
 
-1. **Backend foundation** - API, mock data, configuration, container, and tests.
-2. **Reporting home** - responsive report discovery, search, routing, and loading/empty/error states.
-3. **Report exploration** - responsive data tables for Users, Departments, and Projects with search, sorting, resilient states, and return navigation.
-4. **Container delivery** - deterministic multi-stage images, health-gated orchestration, secure proxying, and repeatable smoke checks.
-5. **Submission polish** - browser checks, accessibility and responsive QA, screenshots/demo, and final rubric review.
+Both report metadata and report rows use explicit states:
+
+```text
+idle/loading -> success
+             -> empty
+             -> error -> retry -> loading
+```
+
+Search can additionally produce a no-results state without changing the underlying successful response. Unknown report IDs are rejected by the client allowlist before an API request is constructed.
+
+Requests are cancelled when their consuming component is replaced or unmounted. A 10-second timeout prevents an unavailable service from leaving the interface in an indefinite loading state.
+
+## Reliability and security posture
+
+- Report fixtures and Java response records are immutable.
+- Controller tests cover every endpoint and accepted and rejected CORS preflights.
+- Frontend component tests cover loading, empty, error, retry, filtering, sorting, malformed responses, routing, and navigation.
+- Both containers run as non-root users and expose health checks.
+- Compose includes dependency-aware startup, restart policies, signal-forwarding init processes, graceful stop windows, and bounded log rotation.
+- Published ports bind to `127.0.0.1` for local-only access.
+- Dynamic report identifiers are allowlisted before request construction.
+- API strings are rendered through React and are never inserted as raw HTML.
+- Nginx applies Content Security Policy, anti-framing, MIME-sniffing, referrer, and permissions controls.
+- Spring error responses omit exception messages and stack traces.
+- Actuator exposes only health and info, and health details are suppressed.
+
+## Production evolution
+
+The assessment intentionally implements a bounded local reporting slice. A production deployment would typically add:
+
+- enterprise authentication and authorization at a trusted identity-aware gateway;
+- TLS termination and managed ingress;
+- repository-backed persistence with migrations;
+- server-side query, filtering, sorting, and pagination;
+- generated API schemas or clients;
+- centralized metrics, logs, tracing, and alerting; and
+- deployment automation for a selected hosting environment.
+
+These concerns remain outside the current scope because adding simulated versions would increase complexity without improving the required reporting workflow.
