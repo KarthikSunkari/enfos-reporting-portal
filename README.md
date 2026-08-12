@@ -1,5 +1,7 @@
 # ENFOS Reporting Portal
 
+[![CI](https://github.com/KarthikSunkari/enfos-reporting-portal/actions/workflows/ci.yml/badge.svg)](https://github.com/KarthikSunkari/enfos-reporting-portal/actions/workflows/ci.yml)
+
 A production-minded full-stack reporting portal built with React, TypeScript, Java, and Spring Boot. Users can discover available reports, search the report catalog, and explore Users, Departments, and Projects data in responsive tables.
 
 The application uses deterministic in-memory data so it can be reviewed without database setup. Docker Compose builds, verifies, and starts the complete stack with one command.
@@ -200,6 +202,10 @@ Current automated coverage includes:
 - all three report endpoints and required table views
 - table search, ascending/descending sorting, empty and retry states
 - malformed API response rejection, unknown routes, and back navigation
+
+### Continuous integration
+
+GitHub Actions runs on pushes to `main`, pull requests, and manual dispatches. Backend and frontend checks execute independently, followed by a full Docker Compose build, health-gated startup, and live deployment verification. The workflow uses least-privilege repository permissions and pins third-party actions to immutable commit SHAs.
 
 ## Architecture
 
