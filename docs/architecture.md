@@ -4,10 +4,11 @@
 
 ```mermaid
 flowchart LR
-    Browser[React client<br/>Phase 2] -->|GET /api/reports/**| Controller[ReportController]
+    Browser[React client] -->|same-origin /api/**| Proxy[Nginx proxy]
+    Proxy --> Controller[ReportController]
     Controller --> Service[ReportService]
     Service --> MockData[Immutable in-memory data]
-    Compose[Docker Compose<br/>Phase 3] -. starts .-> Browser
+    Compose[Docker Compose] -. starts .-> Browser
     Compose -. starts .-> Controller
 ```
 
@@ -17,6 +18,18 @@ The application is deliberately split at boundaries that can evolve independentl
 - `ReportService` is the application boundary. The in-memory implementation can later be replaced by a repository-backed implementation without changing the API.
 - Java records make response models concise and immutable.
 - Configuration is externalized through environment variables so the same image can run locally or in a hosted environment.
+
+## Phase 2 decisions
+
+| Decision | Rationale | Tradeoff |
+| --- | --- | --- |
+| React 19, TypeScript, and Vite | A small, fast client build with strict static checks and no unnecessary framework runtime. | The application owns its data-fetching conventions rather than adopting a larger framework. |
+| Feature-oriented frontend folders | API, hooks, page states, and report presentation evolve together without crowding global component folders. | A three-report application has more structure than strictly necessary today. |
+| Same-origin API proxy | The browser talks only to the frontend origin in Compose, simplifying deployment and avoiding production CORS dependencies. | Nginx must know the backend service name. |
+| Purpose-built `useReports` hook | Keeps request lifecycle, cancellation, retry, and UI rendering responsibilities separate. | A broader application could justify a server-state library once caching and mutations are needed. |
+| Runtime response validation | Prevents malformed API payloads from silently corrupting the interface. | Hand-written guards must evolve with the API contract. |
+| CSS design system without a UI kit | Creates a distinctive, lightweight interface while keeping full control of responsive and accessible behavior. | Common primitives must be maintained locally. |
+| Route placeholder for report details | Report cards have stable, testable destinations while table work remains isolated to Phase 3. | This intermediate commit intentionally does not yet satisfy the final table-view requirement. |
 
 ## Phase 1 decisions
 
@@ -49,10 +62,14 @@ All endpoints return JSON and are read-only.
 - The container runs as a non-root user and uses graceful shutdown.
 - Static data is immutable and safe for concurrent reads.
 - Controller contract tests cover every endpoint and both accepted and rejected CORS preflights.
+- Frontend requests are cancelled during unmount, time out after 10 seconds, validate response shape, and expose a retry action.
+- Production browser traffic uses a same-origin proxy with CSP, anti-framing, MIME-sniffing, referrer, and permissions headers.
+- Both runtime containers use non-root users and expose health checks to Compose.
+- The frontend dependency lockfile currently reports zero known npm audit vulnerabilities.
 
 ## Planned phases
 
 1. **Backend foundation** - API, mock data, configuration, container, and tests.
-2. **Frontend experience** - responsive report discovery, search, routing, data tables, and loading/empty/error states.
-3. **Full-stack delivery** - compose integration, end-to-end checks, screenshots, and final runbook polish.
-4. **Hardening pass** - accessibility, responsive/browser QA, dependency audit, and submission review against the rubric.
+2. **Reporting home** - responsive report discovery, search, routing, and loading/empty/error states.
+3. **Report exploration** - responsive data tables for Users, Departments, and Projects with return navigation.
+4. **Submission polish** - end-to-end checks, accessibility and responsive QA, screenshots/demo, and final rubric review.

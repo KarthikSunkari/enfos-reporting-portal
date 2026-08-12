@@ -2,7 +2,7 @@
 
 A full-stack reporting portal built for the ENFOS Software Engineer take-home assessment. The implementation is being delivered in small, reviewable phases so each layer has a clear contract and can be verified independently.
 
-> Current status: **Phase 1 complete and verified - backend foundation.** The React client and final one-command full-stack experience are planned next.
+> Current status: **Phase 2 - reporting landing page implemented.** Report table views are the next incremental delivery.
 
 ## Assessment coverage
 
@@ -17,6 +17,28 @@ The finished application will let a reviewer:
 
 The source assessment is summarized into the delivery plan in [Architecture and decisions](docs/architecture.md). That document also records assumptions and tradeoffs for interview discussion.
 
+## Run the full stack
+
+Prerequisite: Docker Desktop or Docker Engine with Compose v2.
+
+```bash
+docker compose up --build
+```
+
+Open the reporting portal at `http://localhost:3000`. The frontend proxies `/api/**` to the backend inside the Compose network, while the backend remains directly available at `http://localhost:8080` for API inspection.
+
+Verify both services in another terminal:
+
+```bash
+curl --fail http://localhost:3000/healthz
+curl --fail http://localhost:3000/api/reports
+curl --fail http://localhost:8080/actuator/health
+```
+
+Stop the application with `docker compose down`.
+
+The image builds run linting and all automated tests. This makes `docker compose up --build` the intended clean-checkout build, verification, and startup path.
+
 ## Phase 1: Spring Boot API
 
 The backend currently provides the four required read-only endpoints:
@@ -29,23 +51,6 @@ The backend currently provides the four required read-only endpoints:
 | `GET /api/reports/projects` | Projects report rows |
 
 Useful operational endpoint: `GET /actuator/health`.
-
-### Run with Docker (recommended)
-
-Prerequisite: Docker Desktop or Docker Engine with Compose v2.
-
-```bash
-docker compose up --build
-```
-
-The API is available at `http://localhost:8080`. Verify it in another terminal:
-
-```bash
-curl --fail http://localhost:8080/actuator/health
-curl --fail http://localhost:8080/api/reports
-```
-
-Stop the service with `docker compose down`.
 
 ### Run directly
 
@@ -65,12 +70,48 @@ mvn verify
 
 The Docker image also runs the complete test suite during every build, so `docker compose build backend` is a clean-checkout verification path without a local Java or Maven installation.
 
+## Phase 2: React reporting home
+
+The React and TypeScript frontend now includes:
+
+- report metadata fetched from the backend rather than duplicated in the client;
+- fast, case-insensitive report-name filtering;
+- responsive report cards with record counts and refresh dates;
+- loading skeletons plus empty, no-results, and recoverable error states;
+- route-safe links for each report, ready for the table-view phase;
+- runtime validation for API responses and a 10-second request timeout;
+- keyboard-visible focus, semantic landmarks, live result counts, and reduced-motion support; and
+- a non-root Nginx image with same-origin API proxying and restrictive browser security headers.
+
+### Run directly
+
+Prerequisites: Node.js 22.12 or newer and the Phase 1 backend running on port 8080.
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173`. Vite proxies `/api` to the local backend.
+
+### Verify
+
+```bash
+cd frontend
+npm run lint
+npm test
+npm run build
+npm audit
+```
+
 ## Configuration
 
 | Environment variable | Default | Purpose |
 | --- | --- | --- |
 | `SERVER_PORT` | `8080` | Backend HTTP port inside the container |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Comma-separated browser origins allowed to call `/api/**` |
+| `VITE_API_BASE_URL` | `/api` | Optional API base URL embedded into a direct frontend build |
 
 Do not use a wildcard CORS origin for deployment. Set `CORS_ALLOWED_ORIGINS` to the exact frontend origin instead.
 
@@ -87,6 +128,14 @@ Do not use a wildcard CORS origin for deployment. Set `CORS_ALLOWED_ORIGINS` to 
 │   ├── src/test/         # Controller contract and service tests
 │   ├── Dockerfile
 │   └── pom.xml
+├── frontend/
+│   ├── src/
+│   │   ├── app/          # Application routing
+│   │   ├── components/   # Shared brand and icon primitives
+│   │   └── features/     # Report API, hooks, states, cards, and pages
+│   ├── Dockerfile
+│   ├── nginx.conf        # SPA hosting, security headers, and API proxy
+│   └── package.json
 ├── docs/
 │   └── architecture.md   # Design decisions, tradeoffs, and roadmap
 ├── docker-compose.yml
@@ -96,9 +145,9 @@ Do not use a wildcard CORS origin for deployment. Set `CORS_ALLOWED_ORIGINS` to 
 ## Delivery checklist
 
 - [x] Phase 1 - Spring Boot API, deterministic mock data, CORS, health endpoint, tests, and backend container
-- [ ] Phase 2 - React landing page and report table experience
-- [ ] Phase 3 - Full-stack single-command integration, demo assets, and end-to-end tests
-- [ ] Phase 4 - Accessibility, responsive QA, security/dependency review, and submission polish
+- [x] Phase 2 - React landing page, report discovery, search, resilient UI states, routing, and frontend container
+- [ ] Phase 3 - Responsive report table views and navigation
+- [ ] Phase 4 - End-to-end tests, screenshots/demo, accessibility review, and submission polish
 
 ## Assumptions
 
