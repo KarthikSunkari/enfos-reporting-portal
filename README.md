@@ -4,6 +4,8 @@
 
 A production-minded full-stack reporting portal built with React, TypeScript, Java, and Spring Boot. Users can discover available reports, search the report catalog, and explore Users, Departments, and Projects data in responsive tables.
 
+**[Watch the application walkthrough](https://youtu.be/pA3Mcf6ByKw)**
+
 The application uses deterministic in-memory data so it can be reviewed without database setup. Docker Compose builds, verifies, and starts the complete stack with one command.
 
 ## Features
