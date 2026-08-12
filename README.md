@@ -109,8 +109,6 @@ npm run dev
 
 The Vite development server starts at <http://localhost:5173>. Vite proxies `/api` and `/actuator` requests to the backend.
 
-Port `5172` is not configured by this project. A browser request to `localhost:5172` will fail unless an unrelated process is listening there.
-
 ## Ports and request flow
 
 | Port | Used by | When |
@@ -207,21 +205,11 @@ Current automated coverage includes:
 
 GitHub Actions runs on pushes to `main`, pull requests, and manual dispatches. Backend and frontend checks execute independently, followed by a full Docker Compose build, health-gated startup, and live deployment verification. The workflow uses least-privilege repository permissions and pins third-party actions to immutable commit SHAs.
 
-## Architecture
+## Design overview
 
-```text
-React pages
-  -> feature hooks
-  -> validated API client
-  -> Nginx same-origin proxy
-  -> Spring REST controller
-  -> report service interface
-  -> immutable in-memory implementation
-```
+The frontend uses feature-oriented modules that separate pages, reusable states, tables, request hooks, API access, runtime schemas, and types. The Spring Boot backend separates HTTP controllers, immutable response models, service contracts, configuration, and the current in-memory implementation. Nginx provides the production frontend and same-origin API boundary, while Docker Compose coordinates build, readiness, and runtime behavior.
 
-The frontend is organized by report feature, separating pages, reusable UI states, table components, hooks, API access, runtime schemas, and types. The backend separates HTTP controllers, response models, service contracts, configuration, and fixture implementation.
-
-See [Architecture and design decisions](docs/architecture.md) for detailed rationale and tradeoffs.
+See [Architecture and design decisions](docs/architecture.md) for the system diagram, component boundaries, state model, rationale, tradeoffs, and production evolution.
 
 ## Project structure
 
@@ -287,7 +275,6 @@ On Windows, `docker compose up --build` works from PowerShell. The optional veri
 
 - Use <http://localhost:3000> for Docker Compose.
 - Use <http://localhost:5173> only after starting `npm run dev`.
-- Do not use port `5172`; the project does not configure it.
 - Check service state with `docker compose ps`.
 
 ### A port is already allocated
