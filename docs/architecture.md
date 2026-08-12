@@ -42,6 +42,18 @@ The application is deliberately split at boundaries that can evolve independentl
 | Stable configured row keys | Prevents rendering instability and avoids treating row position as identity. | Unexpected rows fall back to an index-based key only after validation. |
 | Unknown route allowlist | Only the three supported IDs can trigger requests, preventing arbitrary route text from becoming an API path. | Report availability is compiled into the client for this assessment. |
 
+## Phase 4 decisions
+
+| Decision | Rationale | Tradeoff |
+| --- | --- | --- |
+| Multi-stage images with build gates | Runtime images contain only the built application, while tests and static checks must pass before packaging. | Clean builds take longer than copying host artifacts. |
+| Version tags plus immutable digests | Reviewers can understand the selected runtime versions while builds resolve to identical image content. | Intentional base-image upgrades require explicit digest changes. |
+| Health-gated frontend startup | Nginx starts only after Spring Boot reports healthy, avoiding predictable startup-time proxy failures. | A persistently unhealthy backend prevents frontend startup rather than serving a degraded shell. |
+| Loopback-only published ports | The local assessment is reachable by the reviewer without exposure to other machines on the network. | Remote access requires an intentional ingress or bind-address change. |
+| Init and graceful stop windows | Signals are reaped/forwarded correctly and Spring has time to finish graceful shutdown. | Adds a tiny init process to each container. |
+| Bounded JSON logs | Prevents an unattended local stack from consuming unlimited host disk. | Older logs rotate out after three 10 MB files per service. |
+| Executable smoke-test script | Makes deployment assertions repeatable without adding a heavyweight end-to-end dependency. | Requires `curl`, available by default on common reviewer environments. |
+
 ## Phase 1 decisions
 
 | Decision | Rationale | Tradeoff |
@@ -79,10 +91,13 @@ All endpoints return JSON and are read-only.
 - The frontend dependency lockfile currently reports zero known npm audit vulnerabilities.
 - Dynamic report identifiers are allowlisted, and report rows must pass the matching runtime schema before rendering.
 - Sorting and searching operate on validated, immutable response arrays and never generate HTML from API strings.
+- Runtime images use non-root users, pinned bases, limited local exposure, bounded logs, init processes, and health checks.
+- Nginx restricts methods, hides upstream server disclosure, and applies security headers without cache-directive inheritance gaps.
 
 ## Planned phases
 
 1. **Backend foundation** - API, mock data, configuration, container, and tests.
 2. **Reporting home** - responsive report discovery, search, routing, and loading/empty/error states.
 3. **Report exploration** - responsive data tables for Users, Departments, and Projects with search, sorting, resilient states, and return navigation.
-4. **Submission polish** - end-to-end checks, accessibility and responsive QA, screenshots/demo, and final rubric review.
+4. **Container delivery** - deterministic multi-stage images, health-gated orchestration, secure proxying, and repeatable smoke checks.
+5. **Submission polish** - browser checks, accessibility and responsive QA, screenshots/demo, and final rubric review.

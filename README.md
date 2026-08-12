@@ -2,7 +2,7 @@
 
 A full-stack reporting portal built for the ENFOS Software Engineer take-home assessment. The implementation is being delivered in small, reviewable phases so each layer has a clear contract and can be verified independently.
 
-> Current status: **Phase 3 - dynamic report table views implemented.** Final end-to-end evidence and submission polish are the next delivery.
+> Current status: **Phase 4 - single-command container deployment implemented.** Final evidence and submission polish are the next delivery.
 
 ## Assessment coverage
 
@@ -19,7 +19,11 @@ The source assessment is summarized into the delivery plan in [Architecture and 
 
 ## Run the full stack
 
-Prerequisite: Docker Desktop or Docker Engine with Compose v2.
+Prerequisites:
+
+- Docker Desktop or Docker Engine with Compose v2;
+- ports `3000` and `8080` available on localhost; and
+- enough free disk space for the pinned Java, Node, and Nginx base images (approximately 3 GB for a first uncached build).
 
 ```bash
 docker compose up --build
@@ -38,6 +42,16 @@ curl --fail http://localhost:8080/actuator/health
 Stop the application with `docker compose down`.
 
 The image builds run linting and all automated tests. This makes `docker compose up --build` the intended clean-checkout build, verification, and startup path.
+
+No host Java, Maven, Node.js, npm, or Nginx installation is required for this path. Both services build from their lockfiles/manifests, run as non-root users, expose health checks, and start in dependency order—the frontend waits until the backend is healthy.
+
+For an automated live verification after startup:
+
+```bash
+./scripts/verify-deployment.sh
+```
+
+The script waits for both services and verifies backend health, all report endpoints through the frontend proxy, SPA detail routes, and the production browser security headers.
 
 ## Phase 1: Spring Boot API
 
@@ -168,7 +182,8 @@ Do not use a wildcard CORS origin for deployment. Set `CORS_ALLOWED_ORIGINS` to 
 - [x] Phase 1 - Spring Boot API, deterministic mock data, CORS, health endpoint, tests, and backend container
 - [x] Phase 2 - React landing page, report discovery, search, resilient UI states, routing, and frontend container
 - [x] Phase 3 - Typed dynamic report table views, record search/sorting, navigation, and resilient states
-- [ ] Phase 4 - End-to-end tests, screenshots/demo, accessibility review, and submission polish
+- [x] Phase 4 - Pinned multi-stage images, health-gated Compose startup, secure proxying, and deployment verification script
+- [ ] Phase 5 - Browser evidence, automated accessibility review, screenshots/demo, and submission polish
 
 ## Assumptions
 
@@ -176,6 +191,23 @@ Do not use a wildcard CORS origin for deployment. Set `CORS_ALLOWED_ORIGINS` to 
 - Dates are transported as ISO-8601 values and formatted for people in the frontend.
 - Authentication is expected to live at an enterprise identity/gateway boundary and is not simulated with hard-coded credentials.
 - The extra Users `location` field and metadata `rowCount` field add useful reporting context without removing any required columns.
+
+## Deployment reliability and security
+
+- Base images are pinned by immutable digest while retaining readable version tags.
+- The build stages run all backend tests plus frontend lint, tests, and production compilation before producing runtime images.
+- Published ports bind to `127.0.0.1`, so the assessment stack is not unintentionally exposed to the local network.
+- Compose uses health-gated dependency startup, restart policies, lightweight init processes, graceful stop windows, and bounded log rotation.
+- Nginx allows only read methods, proxies the API over the private Compose network, suppresses upstream server disclosure, and serves SPA routes safely.
+- Security headers remain present on HTML, assets, API responses, and error responses; cache rules no longer override inherited headers.
+- This local assessment deployment terminates plain HTTP. A hosted production deployment should add TLS and enterprise authentication at a trusted ingress or gateway.
+
+### Troubleshooting
+
+- If a port is already in use, stop the conflicting local service before starting Compose.
+- If Docker reports `no space left on device`, free Docker/host disk space and restart Docker Desktop before rebuilding. Avoid deleting named volumes unless their data is known to be disposable.
+- Inspect service state with `docker compose ps` and logs with `docker compose logs --no-color backend frontend`.
+- Rebuild from the pinned definitions with `docker compose build --pull` when intentionally refreshing image content; changing a digest should be reviewed as a dependency update.
 
 ## License
 
