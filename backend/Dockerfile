@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.7
+FROM maven:3.9.11-eclipse-temurin-21-alpine AS build
+WORKDIR /workspace
+
+COPY pom.xml ./
+RUN --mount=type=cache,target=/root/.m2 mvn -B dependency:go-offline
+
+COPY src ./src
+RUN --mount=type=cache,target=/root/.m2 mvn -B verify
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+RUN addgroup -S app && adduser -S app -G app
+COPY --from=build --chown=app:app /workspace/target/reporting-api-*.jar app.jar
+
+USER app:app
+EXPOSE 8080
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/urandom", "-jar", "/app/app.jar"]

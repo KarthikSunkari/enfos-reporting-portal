@@ -1,0 +1,21 @@
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Java / Maven
+backend/target/
+
+# Frontend 
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Generated assessment artifacts
+tmp/
+output/
