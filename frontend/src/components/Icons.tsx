@@ -29,6 +29,23 @@ export function ArrowUpRightIcon(props: IconProps) {
   )
 }
 
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <svg {...iconDefaults} {...props}>
+      <path d="m15 18-6-6 6-6" />
+      <path d="M9 12h11" />
+    </svg>
+  )
+}
+
+export function SortIcon(props: IconProps) {
+  return (
+    <svg {...iconDefaults} {...props}>
+      <path d="m8 9 4-4 4 4M16 15l-4 4-4-4" />
+    </svg>
+  )
+}
+
 export function RefreshIcon(props: IconProps) {
   return (
     <svg {...iconDefaults} {...props}>

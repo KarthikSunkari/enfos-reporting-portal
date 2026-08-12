@@ -2,7 +2,7 @@
 
 A full-stack reporting portal built for the ENFOS Software Engineer take-home assessment. The implementation is being delivered in small, reviewable phases so each layer has a clear contract and can be verified independently.
 
-> Current status: **Phase 2 - reporting landing page implemented.** Report table views are the next incremental delivery.
+> Current status: **Phase 3 - dynamic report table views implemented.** Final end-to-end evidence and submission polish are the next delivery.
 
 ## Assessment coverage
 
@@ -95,6 +95,27 @@ npm run dev
 
 Open `http://localhost:5173`. Vite proxies `/api` to the local backend.
 
+## Phase 3: Dynamic report tables
+
+Each report card now routes to a dedicated URL backed by its required endpoint:
+
+| Route | API request | Columns |
+| --- | --- | --- |
+| `/reports/users` | `GET /api/reports/users` | ID, name, email, role, status, location, created date |
+| `/reports/departments` | `GET /api/reports/departments` | ID, department, manager, employees, location |
+| `/reports/projects` | `GET /api/reports/projects` | ID, project, department, owner, status, start/end dates |
+
+The detail experience includes:
+
+- a shared typed report registry instead of duplicated pages;
+- runtime validation tailored to every report row schema;
+- responsive, semantic HTML tables with a keyboard-focusable horizontal scroll region;
+- client-side search across every visible field;
+- accessible ascending and descending sorting for every column;
+- readable dates, employee counts, email links, and status indicators;
+- loading skeletons plus empty, error/retry, no-results, and unknown-report states; and
+- prominent navigation back to the report library.
+
 ### Verify
 
 ```bash
@@ -146,7 +167,7 @@ Do not use a wildcard CORS origin for deployment. Set `CORS_ALLOWED_ORIGINS` to 
 
 - [x] Phase 1 - Spring Boot API, deterministic mock data, CORS, health endpoint, tests, and backend container
 - [x] Phase 2 - React landing page, report discovery, search, resilient UI states, routing, and frontend container
-- [ ] Phase 3 - Responsive report table views and navigation
+- [x] Phase 3 - Typed dynamic report table views, record search/sorting, navigation, and resilient states
 - [ ] Phase 4 - End-to-end tests, screenshots/demo, accessibility review, and submission polish
 
 ## Assumptions

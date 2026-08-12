@@ -31,6 +31,17 @@ The application is deliberately split at boundaries that can evolve independentl
 | CSS design system without a UI kit | Creates a distinctive, lightweight interface while keeping full control of responsive and accessible behavior. | Common primitives must be maintained locally. |
 | Route placeholder for report details | Report cards have stable, testable destinations while table work remains isolated to Phase 3. | This intermediate commit intentionally does not yet satisfy the final table-view requirement. |
 
+## Phase 3 decisions
+
+| Decision | Rationale | Tradeoff |
+| --- | --- | --- |
+| Typed report-definition registry | One route and table renderer support all reports while schemas, endpoints, columns, and presentation remain explicit. | Adding a report requires a registry entry and a row guard. |
+| Report-specific runtime guards | A malformed row fails the request instead of producing a partially trusted or misleading table. | The client contract duplicates a small amount of backend schema knowledge. |
+| Semantic table with horizontal overflow | Preserves real header/cell relationships and every required column at narrow widths. | Mobile users may scroll horizontally; hiding business data would be less transparent. |
+| Client-side search and sorting | Immediate interactions are appropriate for the assessment's bounded in-memory datasets. | Production-scale datasets should move filtering, sorting, and pagination to the API. |
+| Stable configured row keys | Prevents rendering instability and avoids treating row position as identity. | Unexpected rows fall back to an index-based key only after validation. |
+| Unknown route allowlist | Only the three supported IDs can trigger requests, preventing arbitrary route text from becoming an API path. | Report availability is compiled into the client for this assessment. |
+
 ## Phase 1 decisions
 
 | Decision | Rationale | Tradeoff |
@@ -66,10 +77,12 @@ All endpoints return JSON and are read-only.
 - Production browser traffic uses a same-origin proxy with CSP, anti-framing, MIME-sniffing, referrer, and permissions headers.
 - Both runtime containers use non-root users and expose health checks to Compose.
 - The frontend dependency lockfile currently reports zero known npm audit vulnerabilities.
+- Dynamic report identifiers are allowlisted, and report rows must pass the matching runtime schema before rendering.
+- Sorting and searching operate on validated, immutable response arrays and never generate HTML from API strings.
 
 ## Planned phases
 
 1. **Backend foundation** - API, mock data, configuration, container, and tests.
 2. **Reporting home** - responsive report discovery, search, routing, and loading/empty/error states.
-3. **Report exploration** - responsive data tables for Users, Departments, and Projects with return navigation.
+3. **Report exploration** - responsive data tables for Users, Departments, and Projects with search, sorting, resilient states, and return navigation.
 4. **Submission polish** - end-to-end checks, accessibility and responsive QA, screenshots/demo, and final rubric review.
