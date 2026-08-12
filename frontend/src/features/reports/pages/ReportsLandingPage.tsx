@@ -32,7 +32,7 @@ export function ReportsLandingPage() {
     [reports],
   )
 
-  const latestUpdate = useMemo(() => {
+  const latestDataUpdate = useMemo(() => {
     const timestamps = reports
       .map((report) => new Date(report.lastUpdated).getTime())
       .filter(Number.isFinite)
@@ -51,7 +51,6 @@ export function ReportsLandingPage() {
           <BrandMark />
         </a>
         <div className="workspace-label">
-          <span className="workspace-label__dot" aria-hidden="true" />
           Reporting workspace
         </div>
       </header>
@@ -62,7 +61,7 @@ export function ReportsLandingPage() {
             <p className="eyebrow"><span /> Operational intelligence</p>
             <h1 id="page-title">Reports that move<br />work forward.</h1>
             <p className="hero__description">
-              A clear view of your people, organization, and project delivery—ready when decisions need to be made.
+              A clear view of your people, organization, and project delivery. Ready when decisions need to be made.
             </p>
           </div>
 
@@ -76,8 +75,8 @@ export function ReportsLandingPage() {
               <dd>{isLoading ? '—' : totalRecords.toLocaleString()}</dd>
             </div>
             <div>
-              <dt>Latest refresh</dt>
-              <dd className="hero__metric-date">{isLoading ? 'Checking…' : latestUpdate}</dd>
+              <dt>Latest data update</dt>
+              <dd className="hero__metric-date">{isLoading ? 'Checking…' : latestDataUpdate}</dd>
             </div>
           </dl>
         </section>

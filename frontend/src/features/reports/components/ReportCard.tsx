@@ -68,7 +68,7 @@ export function ReportCard({ report, index }: ReportCardProps) {
           <dd>{report.rowCount.toLocaleString()}</dd>
         </div>
         <div>
-          <dt>Last refreshed</dt>
+          <dt>Data updated</dt>
           <dd>{formattedDate}</dd>
         </div>
       </dl>

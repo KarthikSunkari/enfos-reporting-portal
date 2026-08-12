@@ -39,7 +39,6 @@ export function ReportDetailPage() {
           <BrandMark />
         </Link>
         <div className="workspace-label">
-          <span className="workspace-label__dot" aria-hidden="true" />
           Reporting workspace
         </div>
       </header>
@@ -64,7 +63,7 @@ export function ReportDetailPage() {
                 </div>
                 <div>
                   <dt>Source</dt>
-                  <dd>Live API</dd>
+                  <dd>In-memory API</dd>
                 </div>
               </dl>
             </div>
