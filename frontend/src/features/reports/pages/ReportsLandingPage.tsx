@@ -10,11 +10,10 @@ import {
 } from '../components/ReportsState'
 import { useReports } from '../hooks/useReports'
 
-const timeFormatter = new Intl.DateTimeFormat('en-US', {
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
+  year: 'numeric',
 })
 
 export function ReportsLandingPage() {
@@ -37,7 +36,7 @@ export function ReportsLandingPage() {
       .map((report) => new Date(report.lastUpdated).getTime())
       .filter(Number.isFinite)
     if (timestamps.length === 0) return 'Awaiting data'
-    return timeFormatter.format(new Date(Math.max(...timestamps)))
+    return dateFormatter.format(new Date(Math.max(...timestamps)))
   }, [reports])
 
   const resultLabel = normalizedQuery

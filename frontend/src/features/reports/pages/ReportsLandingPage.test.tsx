@@ -58,6 +58,9 @@ describe('ReportsLandingPage', () => {
     expect(screen.getByRole('heading', { name: 'Departments' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Projects' })).toBeVisible()
     expect(screen.getByText('15')).toBeVisible()
+    const latestUpdate = screen.getByText('Latest data update').nextElementSibling
+    expect(latestUpdate).toHaveTextContent(/Aug \d{1,2}, 2026/)
+    expect(latestUpdate).not.toHaveTextContent(/AM|PM|:/)
   })
 
   it('filters reports by name without case sensitivity', async () => {
