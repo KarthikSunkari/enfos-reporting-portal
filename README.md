@@ -222,6 +222,15 @@ The frontend uses feature-oriented modules that separate pages, reusable states,
 
 See [Architecture and design decisions](docs/architecture.md) for the system diagram, component boundaries, state model, rationale, tradeoffs, and production evolution.
 
+## Assumptions and tradeoffs
+
+- In-memory data is sufficient for this reporting slice and keeps setup deterministic. Data does not persist across restarts.
+- Client-side search and sorting are appropriate for the small bounded datasets. A larger system should move filtering, sorting, and pagination to the backend.
+- Hand-written response guards keep this small client dependency-light. A broader API could generate clients and schemas from OpenAPI.
+- Authentication is intentionally not simulated with hard-coded credentials. Production authentication belongs at an enterprise identity boundary.
+- Tables retain every business column at small viewport widths through horizontal scrolling rather than hiding data.
+- Health-gated startup prioritizes a ready complete experience over serving a frontend shell while the API remains unavailable.
+
 ## Project structure
 
 ```text
@@ -271,15 +280,6 @@ The Compose workflow is designed for current Docker Desktop installations on mac
 It is not accurate to promise operation on every system. A compatible Docker engine, Linux-container support, available ports, sufficient memory/disk, and initial registry/network access are still required. The stack has been live-verified on Apple Silicon; the multi-platform definitions are intended to make the same command portable to typical reviewer machines.
 
 On Windows, `docker compose up --build` works from PowerShell. The optional verification shell script requires Git Bash, WSL, or another POSIX-compatible shell with `curl`.
-
-## Assumptions and tradeoffs
-
-- In-memory data is sufficient for this reporting slice and keeps setup deterministic. Data does not persist across restarts.
-- Client-side search and sorting are appropriate for the small bounded datasets. A larger system should move filtering, sorting, and pagination to the backend.
-- Hand-written response guards keep this small client dependency-light. A broader API could generate clients and schemas from OpenAPI.
-- Authentication is intentionally not simulated with hard-coded credentials. Production authentication belongs at an enterprise identity boundary.
-- Tables retain every business column at small viewport widths through horizontal scrolling rather than hiding data.
-- Health-gated startup prioritizes a ready complete experience over serving a frontend shell while the API remains unavailable.
 
 ## Troubleshooting
 
