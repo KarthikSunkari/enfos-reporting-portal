@@ -31,11 +31,11 @@ The application uses deterministic in-memory data so it can be reviewed without 
 
 | Desktop and same-origin API | Responsive mobile layout |
 | --- | --- |
-| ![Desktop landing page with a successful API request](docs/screenshots/desktop-api-integration.png) | ![Landing page in an emulated mobile viewport](docs/screenshots/mobile-responsive.png) |
+| ![Desktop landing page with a successful API request](docs/screenshots/desktop-api-integration.png) | ![Report cards stacked vertically in an emulated mobile viewport](docs/screenshots/mobile-responsive.png) |
 | **Report filtering** | **Lighthouse audit** |
 | ![Department report filtered to a matching row](docs/screenshots/report-filtering.png) | ![Lighthouse scores for performance, accessibility, and best practices](docs/screenshots/lighthouse-audit.png) |
 
-Additional views: [Users report](docs/screenshots/users-report.png) and [Departments report on a tablet viewport](docs/screenshots/departments-tablet.png).
+Additional views: [Users report](docs/screenshots/users-report.png), [Departments report on a tablet viewport](docs/screenshots/departments-tablet.png), and [Projects report filtering across row fields](docs/screenshots/project-report-filtering.png).
 
 ## Quick start
 
